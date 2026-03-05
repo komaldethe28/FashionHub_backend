@@ -12,8 +12,9 @@ const authUser = async (req, res, next) => {
         const tocken_decoded = jwt.verify(token, process.env.JWT_SECRET)
         req.body.userId = tocken_decoded.id;
         next();
+        
     } catch (error) {
         return res.json({ success: false, message: error.message })
     }
 }
-    export default authUser;
+export default authUser;
