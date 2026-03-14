@@ -82,7 +82,8 @@ const adminLogin = async (req, res) => {
         const { email, password } = req.body;
 
         if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-            const token = jwt.sign(email + password, process.env.JWT_SECRET)
+            // Use the same token shape as regular users so downstream middleware can decode consistently
+            const token = createToken(email + password)
 
             res.json({ success: true, token })
         } else {
