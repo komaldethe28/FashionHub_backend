@@ -1,7 +1,6 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import Stripe from 'stripe';
-import Razorpay from 'razorpay';
 
 // global variables
 const currency = 'usd'
@@ -92,16 +91,24 @@ const placeOrderStripe = async (req, res) => {
 }
 // verify stripe payment and update order data
 const verifyStripe = async (req, res) => {
-    const { orderId, success, userId } = req.query;
+    // authUser middleware populates req.body.userId from the token
+    const { orderId, success } = req.body;
+    const { userId } = req.body;
 
     try {
+        if (!orderId) {
+            return res.json({ success: false, message: 'Missing orderId' })
+        }
+
         if (success === 'true') {
             await orderModel.findByIdAndUpdate(orderId, { payment: true })
-            await userModel.findByIdAndUpdate(userId, { cartData: {} })
-            res.json({ success: true, message: 'Payment successful and order placed' })
-        }else {
+            if (userId) {
+                await userModel.findByIdAndUpdate(userId, { cartData: {} })
+            }
+            return res.json({ success: true, message: 'Payment successful and order placed' })
+        } else {
             await orderModel.findByIdAndDelete(orderId)
-            res.json({ success: false, message: 'Payment failed, order cancelled' })
+            return res.json({ success: false, message: 'Payment failed, order cancelled' })
         }
     } catch (error) {
         console.log(error)
@@ -147,40 +154,4 @@ const verifyStripe = async (req, res) => {
         }
     }
 
-    // Placing order with Razorpay method
-    const placeOrderRazorpay = async (req, res) => {
-        try {
-            const { userId, items, amount, address } = req.body;
-            const orderData = {
-                userId,
-                items,
-                address,
-                amount,
-                paymentMethod: 'Razorpay',
-                payment: false,
-                date: Date.now(),
-            }
-
-            const newOrder = new orderModel(orderData)
-            await newOrder.save()
-
-            const razorpay = new Razorpay({
-                key_id: process.env.RAZORPAY_KEY_ID,
-                key_secret: process.env.RAZORPAY_KEY_SECRET,
-            })
-
-            const options = {
-                amount: amount * 100,
-                currency: 'INR',
-                receipt: newOrder._id.toString(),
-            }
-
-            const order = await razorpay.orders.create(options)
-            res.json({ success: true, order })
-        } catch (error) {
-            console.log(error)
-            res.json({ success: false, message: error.message })
-        }
-    }
-
-    export { placeOrderCOD, placeOrderStripe, placeOrderRazorpay, allOrders, userOrders, updateStatus , verifyStripe }
+    export { placeOrderCOD, placeOrderStripe, allOrders, userOrders, updateStatus , verifyStripe }
